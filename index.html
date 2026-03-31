@@ -282,8 +282,6 @@ const DEFAULT_SHOES = [
       '46.5':{ cost:159.28, stx:187, payout:162.40 }, // ¥1099 海运-$7
     },
     history:[], notes:'甜粉色系，女性/生活方式玩家爱，稳定中量', img:'' },
-  { id:'k14-3', brand:'ASICS', model:'Gel-Kayano 14', sku:'1202A056-110', color:'Simply Taupe', platform:'StockX',
-    cost:0, stx:0, payout:0, goatPayout:0, sizes:{}, history:[], notes:'复古大地色，持仓6个月也能赚', img:'' },
   { id:'g1130-1', brand:'ASICS', model:'Gel-1130', sku:'1201A906-001', color:'Black Pure Silver', platform:'StockX',
     cost:0, stx:0, payout:0, goatPayout:0,
     sizes:{
@@ -407,7 +405,7 @@ const DEFAULT_SHOES = [
     history:[], notes:'NB550 White/Green，大码价格极高！US14=$859货款', img:'' },
 ];
 
-const DATA_VERSION = '20260331-v7';
+const DATA_VERSION = '20260331-v8';
 if (localStorage.getItem('sneaker_data_version') !== DATA_VERSION) {
   localStorage.removeItem('sneaker_shoes3');
   localStorage.setItem('sneaker_data_version', DATA_VERSION);
