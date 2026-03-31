@@ -378,6 +378,11 @@ const DEFAULT_SHOES = [
     history:[], notes:'NB550 White/Green，大码价格极高！US14=$859货款', img:'' },
 ];
 
+const DATA_VERSION = '20260331-v6';
+if (localStorage.getItem('sneaker_data_version') !== DATA_VERSION) {
+  localStorage.removeItem('sneaker_shoes3');
+  localStorage.setItem('sneaker_data_version', DATA_VERSION);
+}
 let shoes = JSON.parse(localStorage.getItem('sneaker_shoes3') || 'null') || DEFAULT_SHOES;
 
 function saveData() {
