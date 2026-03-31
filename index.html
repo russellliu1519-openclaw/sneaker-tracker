@@ -476,15 +476,15 @@ function renderCard(s, sea, air) {
 
 
 
-    ${s.id === 'k14-1' ? `
+    ${(s.id === 'k14-1' || s.id === 'k14-2') ? `
     <div class="chart-section">
       <div class="chart-toggle" onclick="toggleEl('chart-${s.id}')">📈 尺码价格走势 & 销量分析 ▾</div>
       <div class="chart-area" id="chart-${s.id}">
-        <div style="font-size:0.8rem;font-weight:700;color:#16a34a;margin-bottom:6px">✅ 海运+空运均盈利的尺码 — 价格走势（周均）</div>
+        <div style="font-size:0.8rem;font-weight:700;color:#16a34a;margin-bottom:6px">✅ 盈利尺码 — 价格走势（周均 W1~W4）</div>
         <div class="chart-wrap"><canvas id="canvas-profit-${s.id}"></canvas></div>
-        <div style="font-size:0.8rem;font-weight:700;color:#dc2626;margin:14px 0 6px">⚠️ 仅海运盈利 / 亏损尺码 — 价格走势（观察是否回暖）</div>
+        <div style="font-size:0.8rem;font-weight:700;color:#dc2626;margin:14px 0 6px">⚠️ 亏损尺码 — 价格走势（观察是否回暖）</div>
         <div class="chart-wrap"><canvas id="canvas-loss-${s.id}"></canvas></div>
-        <div style="font-size:0.8rem;font-weight:700;color:#6c63ff;margin:14px 0 6px">📊 各尺码月销量排行（棒图）</div>
+        <div style="font-size:0.8rem;font-weight:700;color:#6c63ff;margin:14px 0 6px">📊 各尺码月销量 & 预测</div>
         <div class="chart-wrap"><canvas id="canvas-vol-${s.id}"></canvas></div>
         <div class="trend-summary" id="trend-${s.id}"></div>
       </div>
@@ -777,6 +777,7 @@ function makeLineChart(canvasId, labels, datasets, yLabel) {
 let chartInstance = null;
 
 function buildChart(id) {
+  if (id === 'k14-2') { buildChart103(); return; }
   if (id !== 'k14-1') return;
 
   // ── Chart 1: 盈利码价格走势 ──
@@ -927,6 +928,100 @@ function buildChart(id) {
     <div style="overflow-x:auto;margin:6px 0 8px"><table style="width:100%;font-size:0.75rem;border-collapse:collapse">${thead}${rowsLoss}</table></div>
     <div style="font-size:0.72rem;color:#64748b">
       W1=3/1-7 | W2=3/8-14 | W3=3/15-21 | W4=3/22-31 &nbsp;|&nbsp; 🔮预测基于后半月销量趋势外推
+    </div>
+  `;
+}
+
+// ── 103 Chart ────────────────────────────────────────────────────────────────
+function buildChart103() {
+  const entries = Object.entries(WEEKLY_103);
+  const profitEntries = entries.filter(([,d]) => d.pSea !== null && d.pSea > 0);
+  const lossEntries   = entries.filter(([,d]) => d.pSea === null || d.pSea <= 0);
+
+  // Chart 1: profitable sizes
+  makeLineChart('canvas-profit-k14-2', WEEKS,
+    profitEntries.map(([k,d], i) => ({
+      label: k,
+      data: d.weekly,
+      borderColor: PALETTE_GREEN[i % PALETTE_GREEN.length],
+      backgroundColor: PALETTE_GREEN[i % PALETTE_GREEN.length] + '22',
+      borderWidth: 2, pointRadius: 4, tension: 0.3, fill: false,
+    }))
+  );
+
+  // Chart 2: loss sizes (top 8 by volume)
+  const topLoss = lossEntries.sort((a,b)=>b[1].count-a[1].count).slice(0,8);
+  makeLineChart('canvas-loss-k14-2', WEEKS,
+    topLoss.map(([k,d], i) => ({
+      label: k,
+      data: d.weekly,
+      borderColor: PALETTE_RED[i % PALETTE_RED.length],
+      backgroundColor: PALETTE_RED[i % PALETTE_RED.length] + '22',
+      borderWidth: 1.5, borderDash: [5,3], pointRadius: 3, tension: 0.3, fill: false,
+    }))
+  );
+
+  // Chart 3: volume bar
+  const sorted = entries.sort((a,b)=>b[1].count-a[1].count);
+  const cVol = document.getElementById('canvas-vol-k14-2');
+  if (cVol) {
+    if (charts['canvas-vol-k14-2']) charts['canvas-vol-k14-2'].destroy();
+    charts['canvas-vol-k14-2'] = new Chart(cVol, {
+      type: 'bar',
+      data: {
+        labels: sorted.map(([k])=>k.split('(')[1]?.replace(')','') || k),
+        datasets: [{
+          label: '3月销量',
+          data: sorted.map(([,d])=>d.count),
+          backgroundColor: sorted.map(([,d])=>
+            d.pAir > 0 ? 'rgba(22,163,74,0.75)' :
+            d.pSea > 0 ? 'rgba(217,119,6,0.75)' :
+            d.pSea === null ? 'rgba(150,150,150,0.5)' : 'rgba(220,38,38,0.6)'
+          ),
+          borderWidth: 1,
+        },{
+          label: '预测4月',
+          data: sorted.map(([,d])=>Math.round(d.late*1.94)),
+          type: 'line', borderColor: '#6c63ff', borderDash:[5,3],
+          borderWidth:2, pointRadius:3, fill:false, tension:0.3,
+        }]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{position:'top',labels:{font:{size:11},boxWidth:12}} },
+        scales:{
+          x:{grid:{color:'#f1f5f9'},ticks:{font:{size:10}}},
+          y:{beginAtZero:true,title:{display:true,text:'销量（笔）'},grid:{color:'#f1f5f9'}}
+        }
+      }
+    });
+  }
+
+  // Summary table
+  const thead = `<tr style="background:#f1f5f9;color:#64748b;font-size:0.72rem"><th style="padding:4px">EU</th><th>US</th><th>月销量</th><th>销量趋势</th><th>W1→W2→W3→W4</th><th>价格趋势</th><th>🚢海运</th><th>✈️空运</th><th>🔮预测4月</th></tr>`;
+  const makeRow = ([k,d], bg='') => {
+    const eu = k.split('(')[1]?.replace(')','') || k;
+    const us = k.split('(')[0];
+    const w = d.weekly.map(p=>p?'$'+p:'—').join('→');
+    const defined = d.weekly.filter(x=>x);
+    const priceDiff = defined.length>=2 ? defined[defined.length-1]-defined[0] : 0;
+    const priceTrend = priceDiff>10?'📈涨价':priceDiff<-10?'📉跌价':'➡️平稳';
+    const tIcon = d.trend==='up'?'📈':d.trend==='down'?'📉':'➡️';
+    const pS = d.pSea===null?'—':d.pSea>=0?`<span style="color:#16a34a;font-weight:700">+$${d.pSea.toFixed(0)}</span>`:`<span style="color:#dc2626">-$${Math.abs(d.pSea).toFixed(0)}</span>`;
+    const pA = d.pAir===null?'—':d.pAir>=0?`<span style="color:#16a34a;font-weight:700">+$${d.pAir.toFixed(0)}</span>`:`<span style="color:#dc2626">-$${Math.abs(d.pAir).toFixed(0)}</span>`;
+    return `<tr style="${bg}"><td>${eu}</td><td>${us}</td><td><b>${d.count}</b></td><td>${tIcon}</td><td style="font-size:0.7rem">${w}</td><td>${priceTrend}</td><td>${pS}</td><td>${pA}</td><td style="color:#6c63ff">~${Math.round(d.late*1.94)}</td></tr>`;
+  };
+  const profitRows = entries.filter(([,d])=>d.pSea!==null&&d.pSea>0).sort((a,b)=>b[1].count-a[1].count).map(e=>makeRow(e,'background:#f0fdf4')).join('');
+  const seaRows   = entries.filter(([,d])=>d.pSea!==null&&d.pSea>0&&(d.pAir===null||d.pAir<=0)).sort((a,b)=>b[1].count-a[1].count).map(e=>makeRow(e,'background:#fffbeb')).join('');
+  const lossRows  = entries.filter(([,d])=>d.pSea===null||d.pSea<=0).sort((a,b)=>b[1].count-a[1].count).map(e=>makeRow(e,'')).join('');
+
+  document.getElementById('trend-k14-2').innerHTML = `
+    <b style="color:#16a34a">✅ 盈利尺码</b>
+    <div style="overflow-x:auto;margin:6px 0 12px"><table style="width:100%;font-size:0.75rem;border-collapse:collapse">${thead}${profitRows||'<tr><td colspan="9" style="color:#dc2626;padding:8px">⚠️ 海运+空运均盈利的尺码为：EU38(US5.5)</td></tr>'}</table></div>
+    <b style="color:#dc2626">❌ 亏损尺码（观察价格趋势是否回暖）</b>
+    <div style="overflow-x:auto;margin:6px 0 8px"><table style="width:100%;font-size:0.75rem;border-collapse:collapse">${thead}${lossRows}</table></div>
+    <div style="font-size:0.72rem;color:#64748b;margin-top:4px">
+      ⚠️ 这款粉色版整体利润差，<b>仅EU38(US5.5)</b>海运+空运均盈利。多数尺码成交价低于得物成本，不建议大量进货。
     </div>
   `;
 }
