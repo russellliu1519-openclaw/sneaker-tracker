@@ -175,7 +175,7 @@
   <input type="text" id="searchBox" placeholder="🔍 搜索鞋款/SKU..." oninput="render()">
   <select id="brandFilter" onchange="render()">
     <option value="">所有品牌</option>
-    <option>ASICS</option><option>New Balance</option><option>Salomon</option>
+    <option>ASICS</option><option>Jordan</option><option>New Balance</option><option>Salomon</option>
   </select>
   <select id="profitFilter" onchange="render()">
     <option value="">所有利润</option>
@@ -327,6 +327,35 @@ const DEFAULT_SHOES = [
       '44':  { cost:220.87, stx:265, payout:232.60 }, // ¥1524 海+$2 ⚡
     },
     history:[], notes:'🔥 EU37(¥654)利润王！海运+$139 空运+$124', img:'' },
+  // ── Jordan 4 Retro Bred Reimagined FV5029-006 ──
+  { id:'j4-bred', brand:'Jordan', model:'Air Jordan 4 Retro Bred Reimagined', sku:'FV5029-006', color:'Black/Fire Red-Cement Grey', platform:'StockX',
+    cost:0, stx:0, payout:0, goatPayout:0,
+    sizes:{
+      '35.5':{ stx:325, payout:286.60 },
+      '36':  { cost:707.97, stx:271, payout:238.00 }, // ¥4885 ❌亏损
+      '36.5':{ cost:229.13, stx:278, payout:244.30 }, // ¥1581 海+$5 ✅
+      '37.5':{ stx:244, payout:213.70 },
+      '38':  { cost:360.72, stx:386, payout:341.50 }, // ¥2489 ❌
+      '38.5':{ cost:343.33, stx:294, payout:258.70 }, // ¥2369 ❌
+      '39':  { cost:507.10, stx:314, payout:276.70 }, // ¥3499 ❌
+      '40':  { cost:189.71, stx:219, payout:191.20 }, // ¥1309 ❌
+      '40.5':{ cost:202.61, stx:248, payout:217.30 }, // ¥1398 海+$5 ✅
+      '41':  { cost:201.59, stx:238, payout:208.30 }, // ¥1391 ❌
+      '42':  { cost:192.03, stx:224, payout:195.70 }, // ¥1325 ❌
+      '42.5':{ cost:186.52, stx:240, payout:210.10 }, // ¥1287 海+$14 ✅
+      '43':  { cost:179.13, stx:228, payout:199.30 }, // ¥1236 海+$10 ✅
+      '44':  { cost:179.57, stx:225, payout:196.60 }, // ¥1239 海+$7 ✅
+      '44.5':{ cost:183.48, stx:244, payout:213.70 }, // ¥1266 🔥海+$20 空+$5
+      '45':  { cost:184.64, stx:239, payout:209.20 }, // ¥1274 海+$15 ✅
+      '45.5':{ cost:194.78, stx:237, payout:207.40 }, // ¥1344 海+$3 ✅
+      '46':  { cost:196.96, stx:232, payout:202.90 }, // ¥1359 ❌
+      '47':  { cost:326.09, stx:285, payout:250.60 }, // ¥2250 ❌
+      '47.5':{ cost:215.80, stx:252, payout:220.90 }, // ¥1489 ❌
+      '48.5':{ stx:293, payout:257.80 },
+      '49.5':{ stx:344, payout:303.70 },
+      '50.5':{ stx:425, payout:376.60 },
+    },
+    history:[], notes:'🔥 EU44.5(¥1266) 海运+$20 空运+$5！多个尺码海运盈利', img:'' },
   // ── Salomon XT-6 L49209900 ──
   { id:'sal-xt6', brand:'Salomon', model:'XT-6', sku:'L49209900', color:'Falcon/Vintage Khaki', platform:'StockX',
     cost:0, stx:0, payout:0, goatPayout:0,
@@ -378,7 +407,7 @@ const DEFAULT_SHOES = [
     history:[], notes:'NB550 White/Green，大码价格极高！US14=$859货款', img:'' },
 ];
 
-const DATA_VERSION = '20260331-v6';
+const DATA_VERSION = '20260331-v7';
 if (localStorage.getItem('sneaker_data_version') !== DATA_VERSION) {
   localStorage.removeItem('sneaker_shoes3');
   localStorage.setItem('sneaker_data_version', DATA_VERSION);
@@ -552,7 +581,7 @@ function renderCard(s, sea, air) {
 
 
 
-    ${(s.id === 'k14-1' || s.id === 'k14-2' || s.id === 'gnyc-1' || s.id === 'nb550-2' || s.id === 'sal-xt6') ? `
+    ${(s.id === 'k14-1' || s.id === 'k14-2' || s.id === 'gnyc-1' || s.id === 'nb550-2' || s.id === 'sal-xt6' || s.id === 'j4-bred') ? `
     <div class="chart-section">
       <div class="chart-toggle" onclick="toggleEl('chart-${s.id}')">📈 尺码价格走势 & 销量分析 ▾</div>
       <div class="chart-area" id="chart-${s.id}">
@@ -912,7 +941,8 @@ function buildChart(id) {
   if (id === 'k14-2') { buildChart103(); return; }
   if (id === 'gnyc-1')  { buildChartGeneric(id, WEEKLY_GNYC1, 'Gel-NYC Black Graphite 1203A739-001'); return; }
   if (id === 'nb550-2') { buildChartGeneric(id, WEEKLY_NB550, 'NB550 White/Green BB550WT1'); return; }
-  if (id === 'sal-xt6') { buildChartGeneric(id, WEEKLY_SALOMON, 'Salomon XT-6 L49209900'); return; }
+  if (id === 'sal-xt6')  { buildChartGeneric(id, WEEKLY_SALOMON, 'Salomon XT-6 L49209900'); return; }
+  if (id === 'j4-bred')  { buildChartGeneric(id, {}, 'Jordan 4 Retro Bred Reimagined FV5029-006'); return; }
   if (id !== 'k14-1') return;
 
   // ── Chart 1: 盈利码价格走势 ──
