@@ -348,8 +348,8 @@ const DEFAULT_SHOES = [
       '45 1/3':{ cost:184.49, stx:199, payout:173.20 }, // ❌
       '46':    { cost:181.74, stx:171, payout:148.00 }, // ❌
       '46 2/3':{ cost:231.16, stx:166, payout:143.50 }, // ❌
-      '47 1/3':{ cost:270.00, stx:271, payout:238.00 }, // ❌
-      '48':    { cost:237.25, stx:210, payout:183.10 }, // ❌
+      '47 1/3':{ cost:270.00, stx:271, payout:238.00 }, // US12.5 ❌
+      '48':    { cost:237.25, stx:210, payout:183.10 }, // US13   ❌
     },
     history:[], notes:'🔥 EU37 1/3(¥884)+$94海运 / EU38(¥884)+$60海运！超高利润', img:'' },
   { id:'nb550-2', brand:'New Balance', model:'NB 550', sku:'BB550WT1', color:'White/Green 白绿', platform:'StockX',
@@ -783,7 +783,8 @@ const WEEKLY_SALOMON = {
   'US4(EU36)'      :{weekly:[119,218,219,216],count:5,  early:3, late:2, pSea:18.95, pAir:3.95,  trend:'down'},
   'US11.5(EU46)'   :{weekly:[null,181,167,null],count:3,early:1, late:2, pSea:-43.74,pAir:-58.74,trend:'up'},
   'US12(EU46 2/3)' :{weekly:[null,null,151,null],count:2,early:0,late:2, pSea:-97.66,pAir:-112.66,trend:'up'},
-  'US13(EU47 1/3)' :{weekly:[null,null,null,209],count:1,early:0,late:1, pSea:-42,   pAir:-57,   trend:'up'},
+  'US12.5(EU47 1/3)':{weekly:[null,null,null,null],count:0,early:0,late:0,pSea:-42,   pAir:-57,   trend:'flat'},
+  'US13(EU48)'     :{weekly:[null,null,null,209], count:1,early:0,late:1, pSea:-64.15,pAir:-79.15,trend:'up'},
 };
 
 const WEEKLY_GNYC1 = {
