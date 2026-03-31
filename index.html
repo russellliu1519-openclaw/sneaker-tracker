@@ -469,7 +469,19 @@ function renderCard(s, sea, air) {
     : '<div style="color:var(--muted);font-size:0.75rem;padding:4px 0">暂无记录</div>';
 
   // size rows — use shoe's own size keys if available, else fall back to EU_SIZES
-  const sizeKeys = Object.keys(s.sizes).length > 0 ? Object.keys(s.sizes) : EU_SIZES;
+  // Parse EU size strings like '36', '36 2/3', '37 1/3' into numbers for sorting
+  function euToNum(sz) {
+    if (!sz) return 0;
+    const parts = String(sz).trim().split(' ');
+    let val = parseFloat(parts[0]);
+    if (parts.length === 2) {
+      const frac = parts[1].split('/');
+      val += parseInt(frac[0]) / parseInt(frac[1]);
+    }
+    return val;
+  }
+  const rawKeys = Object.keys(s.sizes).length > 0 ? Object.keys(s.sizes) : EU_SIZES;
+  const sizeKeys = [...rawKeys].sort((a, b) => euToNum(a) - euToNum(b));
   const sizeRows = sizeKeys.map(sz => {
     const d = s.sizes[sz] || {};
     const szCost   = d.cost   || s.cost   || 0;
