@@ -353,8 +353,30 @@ const DEFAULT_SHOES = [
     cost:0, stx:0, payout:0, goatPayout:0, sizes:{}, history:[], notes:'小众高利润', img:'' },
   { id:'nb550-1', brand:'New Balance', model:'NB 550', sku:'BB550PB1', color:'White/Grey 白灰经典', platform:'StockX',
     cost:0, stx:0, payout:0, goatPayout:0, sizes:{}, history:[], notes:'StockX常年$100-150', img:'' },
-  { id:'nb550-2', brand:'New Balance', model:'NB 550', sku:'BB550WT1', color:'White/Green 白绿', platform:'两者',
-    cost:0, stx:0, payout:0, goatPayout:0, sizes:{}, history:[], notes:'复古篮球风', img:'' },
+  { id:'nb550-2', brand:'New Balance', model:'NB 550', sku:'BB550WT1', color:'White/Green 白绿', platform:'StockX',
+    cost:0, stx:0, payout:0, goatPayout:0,
+    sizes:{
+      '36':  { cost:51.01, stx:86,  payout:71.50  }, // ¥352  海+$10 ✅
+      '37':  { cost:51.74, stx:86,  payout:71.50  }, // ¥357  海+$10 ✅
+      '37.5':{ cost:52.61, stx:85,  payout:70.60  }, // ¥363  海+$8  ✅
+      '38':  { cost:52.46, stx:85,  payout:70.60  }, // ¥362  海+$8  ✅
+      '38.5':{ cost:67.97, stx:91,  payout:76.00  }, // ¥469  海-$2  ❌
+      '39.5':{ cost:86.81, stx:135, payout:115.60 }, // ¥599  海+$19 空+$4 ✅
+      '40':  { cost:75.22, stx:86,  payout:71.50  }, // ¥519  亏损  ❌
+      '40.5':{ cost:73.77, stx:89,  payout:74.20  }, // ¥509  亏损  ❌
+      '41.5':{ cost:45.94, stx:84,  payout:69.70  }, // ¥317  海+$14 ✅
+      '42':  { cost:45.22, stx:83,  payout:68.80  }, // ¥312  海+$14 ✅
+      '42.5':{ stx:133, payout:113.80 },
+      '43':  { stx:150, payout:129.10 },
+      '44':  { stx:165, payout:142.60 },
+      '44.5':{ stx:264, payout:231.70 },
+      '45':  { stx:235, payout:205.60 },
+      '46.5':{ stx:263, payout:230.80 },
+      '47.5':{ stx:186, payout:161.50 },
+      '49':  { stx:961, payout:859.00 },
+      '50':  { stx:510, payout:453.10 },
+    },
+    history:[], notes:'NB550 White/Green，大码价格极高！US14=$859货款', img:'' },
   { id:'nb550-3', brand:'New Balance', model:'NB 550', sku:'BB550STA', color:'Vintage Teal 复古绿', platform:'两者',
     cost:0, stx:0, payout:0, goatPayout:0, sizes:{}, history:[], notes:'颜色稳定好出', img:'' },
 ];
@@ -515,7 +537,7 @@ function renderCard(s, sea, air) {
 
 
 
-    ${(s.id === 'k14-1' || s.id === 'k14-2' || s.id === 'gnyc-1') ? `
+    ${(s.id === 'k14-1' || s.id === 'k14-2' || s.id === 'gnyc-1' || s.id === 'nb550-2') ? `
     <div class="chart-section">
       <div class="chart-toggle" onclick="toggleEl('chart-${s.id}')">📈 尺码价格走势 & 销量分析 ▾</div>
       <div class="chart-area" id="chart-${s.id}">
@@ -724,6 +746,27 @@ const WEEKLY_103 = {
 };
 
 // ── 1203A739-001 Gel-NYC Black Graphite 分析 ──────────────────────────────────
+// ── BB550WT1 NB550 White/Green ────────────────────────────────────────────────
+const WEEKLY_NB550 = {
+  'US7(EU40)'   :{weekly:[89,87,89,82], count:13,early:8, late:5, pSea:-13.72,pAir:-28.72,trend:'down'},
+  'US8.5(EU42)' :{weekly:[74,81,83,81], count:13,early:5, late:8, pSea:13.58, pAir:-1.42, trend:'up'},
+  'US9.5(EU43)' :{weekly:[89,83,90,140],count:12,early:10,late:2, pSea:null,  pAir:null,  trend:'down'},
+  'US6(EU38.5)' :{weekly:[76,74,79,91], count:9, early:5, late:4, pSea:-1.97, pAir:-16.97,trend:'flat'},
+  'US10(EU44)'  :{weekly:[87,92,null,120],count:7,early:6,late:1, pSea:null,  pAir:null,  trend:'down'},
+  'US6.5(EU39.5)':{weekly:[81,80,84,91],count:7, early:4, late:3, pSea:18.79, pAir:3.79,  trend:'down'},
+  'US5.5(EU38)' :{weekly:[91,86,89,null],count:7,early:6, late:1, pSea:8.14,  pAir:-6.86, trend:'down'},
+  'US9(EU42.5)' :{weekly:[81,87,127,null],count:6,early:5,late:1, pSea:null,  pAir:null,  trend:'down'},
+  'US4.5(EU37)' :{weekly:[59,83,null,89],count:5,early:3, late:2, pSea:9.76,  pAir:-5.24, trend:'down'},
+  'US5(EU37.5)' :{weekly:[null,null,81,90],count:4,early:1,late:3,pSea:7.99,  pAir:-7.01, trend:'up'},
+  'US8(EU41.5)' :{weekly:[85,85,84,null],count:4,early:3, late:1, pSea:13.76, pAir:-1.24, trend:'down'},
+  'US12(EU46.5)':{weekly:[null,177,176,193],count:4,early:1,late:3,pSea:null, pAir:null,  trend:'up'},
+  'US7.5(EU40.5)':{weekly:[null,89,90,null],count:4,early:1,late:3,pSea:-9.57,pAir:-24.57,trend:'up'},
+  'US4(EU36)'   :{weekly:[89,null,null,86],count:3,early:2,late:1,pSea:10.49, pAir:-4.51, trend:'down'},
+  'US11(EU45)'  :{weekly:[145,null,180,null],count:3,early:2,late:1,pSea:null,pAir:null,  trend:'down'},
+  'US13(EU47.5)':{weekly:[null,197,null,187],count:2,early:1,late:1,pSea:null,pAir:null,  trend:'flat'},
+  'US11.5(EU45.5)':{weekly:[null,177,159,null],count:2,early:1,late:1,pSea:null,pAir:null,trend:'flat'},
+};
+
 const WEEKLY_GNYC1 = {
   'US7(EU40)'   :{weekly:[null,124,124,134],count:5, pSea:-51.7, pAir:-66.7, trend:'up'},
   'US10.5(EU44.5)':{weekly:[232,null,248,null],count:4, pSea:null,  pAir:null,  trend:'flat'},
@@ -829,7 +872,8 @@ let chartInstance = null;
 
 function buildChart(id) {
   if (id === 'k14-2') { buildChart103(); return; }
-  if (id === 'gnyc-1') { buildChartGeneric(id, WEEKLY_GNYC1, 'Gel-NYC Black Graphite 1203A739-001'); return; }
+  if (id === 'gnyc-1')  { buildChartGeneric(id, WEEKLY_GNYC1, 'Gel-NYC Black Graphite 1203A739-001'); return; }
+  if (id === 'nb550-2') { buildChartGeneric(id, WEEKLY_NB550, 'NB550 White/Green BB550WT1'); return; }
   if (id !== 'k14-1') return;
 
   // ── Chart 1: 盈利码价格走势 ──
