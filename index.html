@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>
+(function(){
+  const PWD = '1519';
+  const KEY = 'sneaker_auth';
+  if (sessionStorage.getItem(KEY) !== 'ok') {
+    const input = prompt('🔐 请输入访问密码：');
+    if (input !== PWD) {
+      document.write('<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;font-size:1.2rem;color:#dc2626">❌ 密码错误，请刷新重试</div>');
+      throw new Error('Unauthorized');
+    }
+    sessionStorage.setItem(KEY, 'ok');
+  }
+})();
+</script>
+<title>🐯 球鞋套利追踪器</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f4f6f9;
+    --card: #ffffff;
+    --border: #e2e8f0;
+    --accent: #6c63ff;
+    --green: #16a34a;
+    --red: #dc2626;
+    --yellow: #d97706;
+    --text: #1e293b;
+    --muted: #64748b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  header { background: var(--card); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  header h1 { font-size: 1.3rem; font-weight: 700; }
+  header h1 span { color: var(--accent); }
+  .header-stats { display: flex; gap: 12px; margin-left: auto; flex-wrap: wrap; }
+  .stat-pill { background: var(--bg); border: 1px solid var(--border); border-radius: 20px; padding: 6px 14px; font-size: 0.8rem; }
+  .stat-pill b { color: var(--accent); }
+
+  .toolbar { padding: 16px 24px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; background: var(--card); border-bottom: 1px solid var(--border); }
+  .toolbar input, .toolbar select { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 7px 12px; border-radius: 8px; font-size: 0.85rem; }
+  .toolbar input[type=text] { width: 220px; }
+  .btn { padding: 7px 16px; border-radius: 8px; border: none; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: opacity 0.15s; }
+  .btn:hover { opacity: 0.8; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-success { background: var(--green); color: #fff; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+
+  .shipping-bar { padding: 12px 24px; background: #eef2ff; border-bottom: 1px solid var(--border); display: flex; gap: 24px; flex-wrap: wrap; align-items: center; font-size: 0.82rem; color: var(--text); }
+  .shipping-bar input { background: #fff; border: 1px solid var(--border); color: var(--text); padding: 4px 10px; border-radius: 6px; width: 80px; font-size: 0.85rem; }
+  .shipping-bar .formula { color: var(--accent); font-weight: 600; }
+
+  .main { padding: 20px 24px; }
+  .brand-section { margin-bottom: 32px; }
+  .brand-title { font-size: 1rem; font-weight: 700; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .brand-title::before { content: ''; display: inline-block; width: 4px; height: 16px; background: var(--accent); border-radius: 2px; }
+
+  .shoe-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 14px; }
+
+  .shoe-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; transition: border-color 0.2s; }
+  .shoe-card:hover { border-color: var(--accent); }
+  .shoe-card.profit-high { border-left: 3px solid var(--green); }
+  .shoe-card.profit-mid  { border-left: 3px solid var(--yellow); }
+  .shoe-card.profit-low  { border-left: 3px solid var(--red); }
+
+  .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+  .shoe-name { font-weight: 700; font-size: 0.92rem; line-height: 1.3; }
+  .shoe-sku  { color: var(--muted); font-size: 0.72rem; margin-top: 3px; font-family: monospace; }
+  .platform-badge { font-size: 0.7rem; padding: 3px 8px; border-radius: 10px; background: var(--bg); border: 1px solid var(--border); }
+
+  /* 4-col price grid */
+  .price-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .price-box { background: var(--bg); border-radius: 8px; padding: 8px 10px; text-align: center; }
+  .price-box label { font-size: 0.64rem; color: var(--muted); display: block; margin-bottom: 3px; }
+  .price-box input { background: transparent; border: none; color: var(--text); font-size: 0.9rem; font-weight: 700; text-align: center; width: 100%; }
+  .price-box input:focus { outline: 1px solid var(--accent); border-radius: 4px; }
+  .price-box.highlight { background: #eff6ff; }
+
+  .profit-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .profit-chip { border-radius: 8px; padding: 6px 12px; font-size: 0.82rem; font-weight: 700; flex: 1; text-align: center; }
+  .chip-sea { background: rgba(22,163,74,0.1);  color: var(--green);  border: 1px solid rgba(22,163,74,0.3); }
+  .chip-air { background: rgba(217,119,6,0.1);  color: var(--yellow); border: 1px solid rgba(217,119,6,0.3); }
+  .chip-neg { background: rgba(220,38,38,0.1);  color: var(--red);    border: 1px solid rgba(220,38,38,0.3); }
+
+  .size-section { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px; }
+  .size-toggle { font-size: 0.75rem; color: var(--muted); cursor: pointer; user-select: none; }
+  .size-toggle:hover { color: var(--accent); }
+  .size-table { display: none; margin-top: 8px; overflow-x: auto; }
+  .size-table.open { display: block; }
+  .size-table table { width: 100%; font-size: 0.75rem; border-collapse: collapse; }
+  .size-table th { color: var(--muted); padding: 5px 6px; text-align: center; border-bottom: 1px solid var(--border); background: var(--bg); }
+  .size-table td { padding: 4px 5px; text-align: center; border-bottom: 1px solid #f1f5f9; }
+  .size-table td input { background: var(--bg); border: 1px solid var(--border); color: var(--text); width: 70px; padding: 3px 5px; border-radius: 5px; text-align: center; font-size: 0.75rem; }
+  .size-profit-pos { color: var(--green); font-weight: 700; }
+  .size-profit-neg { color: var(--red); }
+  .size-pct { font-size: 0.7rem; color: var(--muted); }
+
+  .history-section { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px; }
+  .history-toggle { font-size: 0.75rem; color: var(--muted); cursor: pointer; user-select: none; }
+  .history-toggle:hover { color: var(--accent); }
+  .history-area { display: none; margin-top: 8px; }
+  .history-area.open { display: block; }
+  .history-entries { max-height: 140px; overflow-y: auto; font-size: 0.75rem; }
+  .history-entry { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--border); gap: 8px; }
+  .history-entry:last-child { border-bottom: none; }
+  .history-add { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+  .history-add input, .history-add select { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; }
+
+  /* Sales chart */
+  .chart-section { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px; }
+  .chart-toggle { font-size: 0.75rem; color: var(--muted); cursor: pointer; user-select: none; }
+  .chart-toggle:hover { color: var(--accent); }
+  .chart-area { display: none; margin-top: 10px; }
+  .chart-area.open { display: block; }
+  .chart-wrap { position: relative; height: 220px; }
+  .chart-inputs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; align-items: center; font-size: 0.75rem; color: var(--muted); }
+  .chart-inputs input { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; }
+  .trend-summary { margin-top: 8px; padding: 8px 12px; background: var(--bg); border-radius: 8px; font-size: 0.78rem; line-height: 1.6; }
+
+  .img-upload { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px; }
+  .img-upload label { font-size: 0.75rem; color: var(--muted); cursor: pointer; display: flex; align-items: center; gap: 6px; }
+  .img-upload label:hover { color: var(--accent); }
+  .img-upload input[type=file] { display: none; }
+  .img-thumb { width: 60px; height: 40px; object-fit: cover; border-radius: 5px; border: 1px solid var(--border); }
+
+  .add-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; }
+  .add-modal.open { display: flex; }
+  .modal-box { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 24px; width: 440px; max-width: 95vw; }
+  .modal-box h2 { font-size: 1.1rem; margin-bottom: 16px; }
+  .modal-box .field { margin-bottom: 12px; }
+  .modal-box label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 5px; }
+  .modal-box input, .modal-box select, .modal-box textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 8px; font-size: 0.88rem; }
+  .modal-box textarea { resize: vertical; min-height: 60px; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--green); color: #fff; padding: 10px 18px; border-radius: 10px; font-size: 0.85rem; font-weight: 600; opacity: 0; transition: opacity 0.3s; z-index: 200; pointer-events: none; }
+  .toast.show { opacity: 1; }
+
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
+
+  @media (max-width: 640px) {
+    .shoe-grid { grid-template-columns: 1fr; }
+    .price-grid { grid-template-columns: 1fr 1fr; }
+    .header-stats { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🐯 球鞋<span>套利</span>追踪器</h1>
+    <div style="font-size:0.72rem;color:var(--muted);margin-top:2px;">国内购入（得物）→ StockX / GOAT 转售</div>
+  </div>
+  <div class="header-stats">
+    <div class="stat-pill">总鞋款 <b id="totalCount">0</b></div>
+    <div class="stat-pill">海运正利润 <b id="profitSeaCount" style="color:var(--green)">0</b></div>
+    <div class="stat-pill">空运正利润 <b id="profitAirCount" style="color:var(--yellow)">0</b></div>
+  </div>
+</header>
+
+<div class="shipping-bar">
+  <div>🚢 中国海运：$<input type="number" id="seaCost" value="10" min="0" step="0.5" oninput="render()"></div>
+  <div>✈️ 中国空运：$<input type="number" id="airCost" value="25" min="0" step="0.5" oninput="render()"></div>
+  <div class="formula">💡 利润 = StockX货款 − 得物成本 − 中国运费</div>
+  <div style="color:var(--muted);font-size:0.78rem">货款 = StockX已扣除手续费+支付手续费+StockX运费后的到手金额</div>
+</div>
+
+<div class="toolbar">
+  <input type="text" id="searchBox" placeholder="🔍 搜索鞋款/SKU..." oninput="render()">
+  <select id="brandFilter" onchange="render()">
+    <option value="">所有品牌</option>
+    <option>ASICS</option><option>Nike</option><option>Anta</option><option>New Balance</option>
+  </select>
+  <select id="profitFilter" onchange="render()">
+    <option value="">所有利润</option>
+    <option value="sea">海运正利润</option>
+    <option value="air">空运正利润</option>
+    <option value="neg">亏损</option>
+  </select>
+  <button class="btn btn-primary" onclick="openModal()">+ 添加鞋款</button>
+  <button class="btn btn-success" onclick="exportCSV()">↓ 导出CSV</button>
+  <button class="btn btn-outline" onclick="saveData()">💾 保存</button>
+</div>
+
+<div class="main" id="mainContent"></div>
+
+<div class="add-modal" id="addModal">
+  <div class="modal-box">
+    <h2>➕ 添加鞋款</h2>
+    <div class="field"><label>品牌</label>
+      <select id="mBrand"><option>ASICS</option><option>Nike</option><option>Anta</option><option>New Balance</option><option>Other</option></select>
+    </div>
+    <div class="field"><label>型号名称</label><input type="text" id="mName" placeholder="e.g. Gel-Kayano 14"></div>
+    <div class="field"><label>SKU / 货号</label><input type="text" id="mSku" placeholder="e.g. 1203A537-110"></div>
+    <div class="field"><label>配色</label><input type="text" id="mColor" placeholder="e.g. White Graphite Grey"></div>
+    <div class="field"><label>平台</label>
+      <select id="mPlatform"><option>StockX</option><option>GOAT</option><option>两者</option></select>
+    </div>
+    <div class="field"><label>得物成本 ($)</label><input type="number" id="mCost" placeholder="0.00" step="0.01"></div>
+    <div class="field"><label>StockX 最低报价 ($)</label><input type="number" id="mStx" placeholder="0.00" step="0.01"></div>
+    <div class="field"><label>StockX 货款 ($, 到手)</label><input type="number" id="mPayout" placeholder="0.00" step="0.01"></div>
+    <div class="field"><label>GOAT 货款 ($)</label><input type="number" id="mGoat" placeholder="0.00" step="0.01"></div>
+    <div class="field"><label>备注</label><textarea id="mNotes" placeholder="备注..."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" onclick="addShoe()">添加</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// Data model: each shoe has per-size { cost, stx (ask), payout (货款), goatPayout }
+// Profit = payout - cost - shipCost  (no fee calc needed, StockX already deducted)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const EU_SIZES = ['35','35.5','36','37','37.5','38','38.5','39','39.5','40','40.5','41','41.5','42','42.5','43','43.5','44','44.5','45','45.5','46','46.5','47','47.5','48','49'];
+
+const DEFAULT_SHOES = [
+  { id:'k14-1', brand:'ASICS', model:'Gel-Kayano 14', sku:'1203A537-110', color:'White Graphite Grey', platform:'StockX',
+    cost:0, stx:0, payout:0, goatPayout:0,
+    sizes:{
+      '35.5':{ cost:144.78, stx:243, payout:212.80 }, // US3.5
+      '36':  { cost:116.81, stx:142, payout:121.90 }, // US4
+      '37':  { cost:121.74, stx:151, payout:130.00 }, // US4.5
+      '37.5':{ cost:129.71, stx:160, payout:138.10 }, // US5
+      '38':  { cost:133.48, stx:216, payout:188.50 }, // US5.5
+      '39':  { cost:130.14, stx:224, payout:195.70 }, // US6
+      '39.5':{ cost:159.28, stx:225, payout:196.60 }, // US6.5
+      '40':  { cost:145.65, stx:171, payout:148.00 }, // US7
+      '40.5':{ cost:157.10, stx:164, payout:141.70 }, // US7.5
+      '41.5':{ cost:152.17, stx:187, payout:162.40 }, // US8
+      '42':  { cost:147.25, stx:221, payout:193.00 }, // US8.5
+      '42.5':{ cost:154.64, stx:228, payout:199.30 }, // US9
+      '43.5':{ cost:171.59, stx:241, payout:211.00 }, // US9.5
+      '44':  { cost:198.99, stx:254, payout:222.70 }, // US10
+      '44.5':{ cost:217.25, stx:277, payout:243.40 }, // US10.5
+      '45':  { cost:199.86, stx:247, payout:216.40 }, // US11
+      '46':  { cost:220.87, stx:294, payout:258.70 }, // US11.5
+      '46.5':{ cost:206.52, stx:248, payout:217.30 }, // US12
+      '48':  { cost:0,      stx:205, payout:178.60 }, // US13
+      '49':  { cost:0,      stx:325, payout:286.60 }, // US14
+    },
+    history:[
+      { date:'2026-03-31', size:'EU43.5', price:177, platform:'StockX' },
+      { date:'2026-03-31', size:'EU46.5', price:204, platform:'StockX' },
+      { date:'2026-03-31', size:'EU41.5', price:216, platform:'StockX' },
+      { date:'2026-03-31', size:'EU41.5', price:196, platform:'StockX' },
+      { date:'2026-03-31', size:'EU40.5', price:187, platform:'StockX' },
+      { date:'2026-03-31', size:'EU40',   price:135, platform:'StockX' },
+      { date:'2026-03-31', size:'EU41.5', price:128, platform:'StockX' },
+    ],
+    notes:'热门款，最低报价$142-$325，货款$121-$287', img:'' },
+
+  { id:'k14-2', brand:'ASICS', model:'Gel-Kayano 14', sku:'1203A537-103', color:'Cream Sweet Pink', platform:'两者',
+    cost:0, stx:0, payout:0, goatPayout:0, sizes:{}, history:[], notes:'甜粉色系，女性/生活方式玩家爱，稳定中量', img:'' },
+  { id:'k14-3', brand:'ASICS', model:'Gel-Kayano 14', sku:'1202A056-110', color:'Simply Taupe', platform:'StockX',
+    cost:0, stx:0, payout:0, goatPayout:0, sizes:{}, history:[], notes:'复古大地色，持仓6个月也能赚', img:'' },
+  { id:'g1130-1', brand:'ASICS', model:'Gel-1130', sku:'1201A906-001', color:'Black Pure Silver', platform:'StockX',
+    cost:0, stx:0, payout:0, goatPayout:0, sizes:{}, history:[], notes:'转售溢价稳，利润40%+', img:'' },
+  { id:'g1130-2', brand:'ASICS', model:'Gel-1130 GS', sku:'1204A169-001', color:'Black Pure Silver GS', platform:'StockX',
+    cost:0, stx:0, payout:0, goatPayout:0, sizes:{}, history:[], notes:'副码好卖', img:'' },
+  { id:'gnyc-1', brand:'ASICS', model:'Gel-NYC', sku:'1203A739-001', color:'Black Graphite', platform:'GOAT',
+    cost:0, stx:0, payout:0, goatPayout:0, sizes:{}, history:[], notes:'GOAT热款，$150-180区间', img:'' },
+  { id:'gnyc-2', brand:'ASICS', model:'Gel-NYC', sku:'1201A789-101', color:'Ivory/Cream', platform:'两者',
+    cost:0, stx:0, payout:0, goatPayout:0, sizes:{}, history:[], notes:'生活方式玩家最爱', img:'' },
+  { id:'sab-1', brand:'Nike', model:'Nike Sabrina 2', sku:'FQ2174-001', color:'Mirrored Black Silver', platform:'StockX',
+    cost:0, stx:0, payout:0, goatPayout:0, sizes:{}, history:[], notes:'女性专属，WNBA爆款，$170-200', img:'' },
+  { id:'sab-2', brand:'Nike', model:'Nike Sabrina 2', sku:'FQ2174-801', color:'Activate 橙色', platform:'两者',
+    cost:0, stx:0, payout:0, goatPayout:0, sizes:{}, history:[], notes:'亮色好出货', img:'' },
+  { id:'sab-3', brand:'Nike', model:'Nike Sabrina 2', sku:'IB3871-001', color:'Black Label 全黑', platform:'StockX',
+    cost:0, stx:0, payout:0, goatPayout:0, sizes:{}, history:[], notes:'2025新款，利润30%+', img:'' },
+  { id:'aja-1', brand:'Nike', model:"A'ja Wilson A'One", sku:'FZ8605-601', color:"Pink A'ura", platform:'两者',
+    cost:0, stx:0, payout:0, goatPayout:0, sizes:{}, history:[], notes:'女性市场最稳，$160-190', img:'' },
+  { id:'aja-2', brand:'Nike', model:"A'ja Wilson A'One", sku:'FZ8605-401', color:'Indigo Girl 蓝紫', platform:'两者',
+    cost:0, stx:0, payout:0, goatPayout:0, sizes:{}, history:[], notes:'颜色多样，竞争小', img:'' },
+  { id:'aja-3', brand:'Nike', model:"A'ja Wilson A'One GS", sku:'HF7001-600', color:'GS 青少年粉色', platform:'两者',
+    cost:0, stx:0, payout:0, goatPayout:0, sizes:{}, history:[], notes:'副码利润更高', img:'' },
+  { id:'kai-1', brand:'Anta', model:'Anta Kai 1', sku:'8124C1102S-10', color:'Yin 三黑', platform:'StockX',
+    cost:0, stx:0, payout:0, goatPayout:0, sizes:{}, history:[], notes:'极简百搭，StockX $150-180', img:'' },
+  { id:'kai-2', brand:'Anta', model:'Anta Kai 1', sku:'8124C1102S-19', color:'Yang 三白', platform:'StockX',
+    cost:0, stx:0, payout:0, goatPayout:0, sizes:{}, history:[], notes:'最畅销色', img:'' },
+  { id:'kai-3', brand:'Anta', model:'Anta Kai 1', sku:'8124B1102S-7', color:'Artist On Court 彩绘', platform:'两者',
+    cost:0, stx:0, payout:0, goatPayout:0, sizes:{}, history:[], notes:'艺术款，溢价更高', img:'' },
+  { id:'kai-4', brand:'Anta', model:'Anta Kai 1', sku:'8125C1113S-1', color:'Chief Hélà 限量紫橙', platform:'两者',
+    cost:0, stx:0, payout:0, goatPayout:0, sizes:{}, history:[], notes:'小众高利润', img:'' },
+  { id:'nb550-1', brand:'New Balance', model:'NB 550', sku:'BB550PB1', color:'White/Grey 白灰经典', platform:'StockX',
+    cost:0, stx:0, payout:0, goatPayout:0, sizes:{}, history:[], notes:'StockX常年$100-150', img:'' },
+  { id:'nb550-2', brand:'New Balance', model:'NB 550', sku:'BB550WT1', color:'White/Green 白绿', platform:'两者',
+    cost:0, stx:0, payout:0, goatPayout:0, sizes:{}, history:[], notes:'复古篮球风', img:'' },
+  { id:'nb550-3', brand:'New Balance', model:'NB 550', sku:'BB550STA', color:'Vintage Teal 复古绿', platform:'两者',
+    cost:0, stx:0, payout:0, goatPayout:0, sizes:{}, history:[], notes:'颜色稳定好出', img:'' },
+];
+
+let shoes = JSON.parse(localStorage.getItem('sneaker_shoes2') || 'null') || DEFAULT_SHOES;
+
+function saveData() {
+  localStorage.setItem('sneaker_shoes2', JSON.stringify(shoes));
+  showToast('✅ 已保存');
+}
+function getById(id) { return shoes.find(s => s.id === id); }
+
+// ── Calc ──────────────────────────────────────────────────────────────────────
+// profit = payout (货款, 已扣StockX所有费用) - 得物成本 - 中国运费
+function calcProfit(payout, cost, shipCost) {
+  if (!payout || !cost) return null;
+  return payout - cost - shipCost;
+}
+function fmtProfit(val) {
+  if (val === null) return '—';
+  return (val >= 0 ? '+' : '') + '$' + val.toFixed(2);
+}
+function fmtPct(payout, cost) {
+  if (!payout || !cost) return '';
+  return ((payout / cost - 1) * 100).toFixed(0) + '%';
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function render() {
+  const search    = document.getElementById('searchBox').value.toLowerCase();
+  const brandF    = document.getElementById('brandFilter').value;
+  const profitF   = document.getElementById('profitFilter').value;
+  const sea       = parseFloat(document.getElementById('seaCost').value) || 10;
+  const air       = parseFloat(document.getElementById('airCost').value) || 25;
+
+  let filtered = shoes.filter(s => {
+    if (search && !s.model.toLowerCase().includes(search) && !s.sku.toLowerCase().includes(search) && !s.color.toLowerCase().includes(search)) return false;
+    if (brandF && s.brand !== brandF) return false;
+    if (profitF) {
+      const po = s.payout || s.goatPayout;
+      const pSea = calcProfit(po, s.cost, sea);
+      const pAir = calcProfit(po, s.cost, air);
+      if (profitF === 'sea' && (pSea === null || pSea < 0)) return false;
+      if (profitF === 'air' && (pAir === null || pAir < 0)) return false;
+      if (profitF === 'neg' && (pSea === null || pSea >= 0)) return false;
+    }
+    return true;
+  });
+
+  // Header stats
+  let seaPos = 0, airPos = 0;
+  shoes.forEach(s => {
+    const po = s.payout || s.goatPayout;
+    if (calcProfit(po, s.cost, sea) > 0) seaPos++;
+    if (calcProfit(po, s.cost, air) > 0) airPos++;
+  });
+  document.getElementById('totalCount').textContent = shoes.length;
+  document.getElementById('profitSeaCount').textContent = seaPos;
+  document.getElementById('profitAirCount').textContent = airPos;
+
+  const container = document.getElementById('mainContent');
+  if (!filtered.length) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">👟</div><div>没有找到匹配的鞋款</div></div>';
+    return;
+  }
+
+  const groups = {};
+  filtered.forEach(s => { (groups[s.brand] = groups[s.brand] || []).push(s); });
+
+  container.innerHTML = Object.entries(groups).map(([brand, items]) => `
+    <div class="brand-section">
+      <div class="brand-title">${brand} <span style="font-weight:400;font-size:0.8rem">(${items.length}款)</span></div>
+      <div class="shoe-grid">${items.map(s => renderCard(s, sea, air)).join('')}</div>
+    </div>`).join('');
+}
+
+function renderCard(s, sea, air) {
+  const po  = s.platform === 'GOAT' ? s.goatPayout : (s.payout || s.goatPayout);
+  const pSea = calcProfit(po, s.cost, sea);
+  const pAir = calcProfit(po, s.cost, air);
+
+  const cardClass = pSea === null ? '' : pSea >= 20 ? 'profit-high' : pSea >= 0 ? 'profit-mid' : 'profit-low';
+  const seaClass  = pSea === null ? '' : pSea >= 0 ? 'chip-sea' : 'chip-neg';
+  const airClass  = pAir === null ? '' : pAir >= 0 ? 'chip-air' : 'chip-neg';
+
+  const histHtml = s.history.length
+    ? s.history.map(h => `<div class="history-entry"><span style="color:var(--muted)">${h.date}</span><span>${h.size}</span><span style="color:var(--green);font-weight:600">$${h.price}</span><span style="color:var(--muted)">${h.platform}</span></div>`).join('')
+    : '<div style="color:var(--muted);font-size:0.75rem;padding:4px 0">暂无记录</div>';
+
+  // size rows
+  const sizeRows = EU_SIZES.map(sz => {
+    const d = s.sizes[sz] || {};
+    const szCost   = d.cost   || s.cost   || 0;
+    const szPayout = d.payout || s.payout || 0;
+    const szStx    = d.stx   || s.stx    || 0;
+    const szPSea   = calcProfit(szPayout, szCost, sea);
+    const szPAir   = calcProfit(szPayout, szCost, air);
+    const hasPrices = szStx || szPayout;
+    if (!hasPrices && !szCost) return ''; // skip completely empty rows unless default cost
+    return `<tr>
+      <td><b>EU ${sz}</b></td>
+      <td><input type="number" placeholder="${s.cost||'—'}" value="${d.cost||''}" step="0.01" onchange="updateSize('${s.id}','${sz}','cost',this.value)"></td>
+      <td><input type="number" placeholder="${s.stx||'—'}" value="${d.stx||''}" step="0.01" onchange="updateSize('${s.id}','${sz}','stx',this.value)"></td>
+      <td style="font-weight:600;color:var(--accent)">${szPayout ? '$'+szPayout.toFixed(2) : '<input type="number" placeholder="—" value="" step="0.01" style="width:70px;background:var(--bg);border:1px solid var(--border);border-radius:5px;text-align:center;font-size:0.75rem" onchange="updateSize(\''+s.id+'\',\''+sz+'\',\'payout\',this.value)">'}
+      </td>
+      <td class="${szPSea===null?'':(szPSea>=0?'size-profit-pos':'size-profit-neg')}">${fmtProfit(szPSea)}</td>
+      <td class="${szPAir===null?'':(szPAir>=0?'size-profit-pos':'size-profit-neg')}">${fmtProfit(szPAir)}</td>
+    </tr>`;
+  }).join('');
+
+  return `
+  <div class="shoe-card ${cardClass}" id="card-${s.id}">
+    <div class="card-header">
+      <div>
+        <div class="shoe-name">${s.model} <span style="color:var(--muted);font-weight:400">${s.color}</span></div>
+        <div class="shoe-sku">${s.sku}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+        <div class="platform-badge">${s.platform}</div>
+        <button class="btn btn-outline" style="padding:2px 8px;font-size:0.68rem" onclick="deleteShoe('${s.id}')">删除</button>
+      </div>
+    </div>
+
+    <div class="price-grid">
+      <div class="price-box">
+        <label>🛒 得物成本</label>
+        <input type="number" value="${s.cost||''}" placeholder="—" step="0.01" onchange="updateField('${s.id}','cost',this.value)">
+      </div>
+      <div class="price-box">
+        <label>📦 StockX最低报价</label>
+        <input type="number" value="${s.stx||''}" placeholder="—" step="0.01" onchange="updateField('${s.id}','stx',this.value)">
+      </div>
+      <div class="price-box highlight">
+        <label>💰 货款（到手）</label>
+        <input type="number" value="${s.payout||''}" placeholder="—" step="0.01" onchange="updateField('${s.id}','payout',this.value)">
+      </div>
+      <div class="price-box">
+        <label>🐐 GOAT货款</label>
+        <input type="number" value="${s.goatPayout||''}" placeholder="—" step="0.01" onchange="updateField('${s.id}','goatPayout',this.value)">
+      </div>
+    </div>
+
+    <div class="profit-row">
+      <div class="profit-chip ${seaClass}">🚢 海运利润：${fmtProfit(pSea)}</div>
+      <div class="profit-chip ${airClass}">✈️ 空运利润：${fmtProfit(pAir)}</div>
+    </div>
+    ${s.notes ? `<div style="font-size:0.75rem;color:var(--muted);margin-top:8px">💬 ${s.notes}</div>` : ''}
+
+    <div class="size-section">
+      <div class="size-toggle" onclick="toggleEl('sizes-${s.id}')">📏 各尺码明细 ▾</div>
+      <div class="size-table" id="sizes-${s.id}">
+        <table>
+          <thead><tr><th>EU码</th><th>得物成本</th><th>最低报价</th><th>货款(到手)</th><th>🚢海运利润</th><th>✈️空运利润</th></tr></thead>
+          <tbody>${sizeRows || '<tr><td colspan="6" style="color:var(--muted);padding:8px">暂无尺码数据，从截图更新后显示</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>
+
+
+
+    ${s.id === 'k14-1' ? `
+    <div class="chart-section">
+      <div class="chart-toggle" onclick="toggleEl('chart-${s.id}')">📈 尺码价格走势 & 销量分析 ▾</div>
+      <div class="chart-area" id="chart-${s.id}">
+        <div style="font-size:0.8rem;font-weight:700;color:#16a34a;margin-bottom:6px">✅ 海运+空运均盈利的尺码 — 价格走势（周均）</div>
+        <div class="chart-wrap"><canvas id="canvas-profit-${s.id}"></canvas></div>
+        <div style="font-size:0.8rem;font-weight:700;color:#dc2626;margin:14px 0 6px">⚠️ 仅海运盈利 / 亏损尺码 — 价格走势（观察是否回暖）</div>
+        <div class="chart-wrap"><canvas id="canvas-loss-${s.id}"></canvas></div>
+        <div style="font-size:0.8rem;font-weight:700;color:#6c63ff;margin:14px 0 6px">📊 各尺码月销量排行（棒图）</div>
+        <div class="chart-wrap"><canvas id="canvas-vol-${s.id}"></canvas></div>
+        <div class="trend-summary" id="trend-${s.id}"></div>
+      </div>
+    </div>` : ''}
+
+    <div class="img-upload">
+      <label>
+        📷 上传截图
+        <input type="file" accept="image/*" onchange="handleImg('${s.id}',this)">
+        ${s.img ? `<img class="img-thumb" src="${s.img}">` : '+ 截图'}
+      </label>
+    </div>
+  </div>`;
+}
+
+// ── Interactions ──────────────────────────────────────────────────────────────
+function updateField(id, field, val) {
+  const s = getById(id); if (!s) return;
+  s[field] = parseFloat(val) || 0;
+  saveData(); render();
+}
+function updateSize(id, sz, field, val) {
+  const s = getById(id); if (!s) return;
+  if (!s.sizes[sz]) s.sizes[sz] = {};
+  s.sizes[sz][field] = parseFloat(val) || 0;
+  saveData(); render();
+}
+function toggleEl(id) {
+  document.getElementById(id).classList.toggle('open');
+  if (id.startsWith('chart-')) {
+    const sid = id.replace('chart-', '');
+    setTimeout(() => buildChart(sid), 50);
+  }
+}
+
+function addHistory(id) {
+  const s = getById(id); if (!s) return;
+  const date  = document.getElementById('hdate-'+id).value;
+  const size  = document.getElementById('hsize-'+id).value;
+  const price = parseFloat(document.getElementById('hprice-'+id).value);
+  const plat  = document.getElementById('hplat-'+id).value;
+  if (!date || !size || !price) { showToast('⚠️ 请填写完整'); return; }
+  s.history.unshift({ date, size, price, platform: plat });
+  saveData(); render();
+}
+function deleteShoe(id) {
+  if (!confirm('确认删除？')) return;
+  shoes = shoes.filter(s => s.id !== id);
+  saveData(); render();
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+function openModal()  { document.getElementById('addModal').classList.add('open'); }
+function closeModal() { document.getElementById('addModal').classList.remove('open'); }
+function addShoe() {
+  const name = document.getElementById('mName').value.trim();
+  const sku  = document.getElementById('mSku').value.trim();
+  if (!name || !sku) { showToast('⚠️ 型号和SKU必填'); return; }
+  shoes.push({
+    id: 'shoe-'+Date.now(),
+    brand: document.getElementById('mBrand').value,
+    model: name, sku,
+    color: document.getElementById('mColor').value.trim(),
+    platform: document.getElementById('mPlatform').value,
+    cost:       parseFloat(document.getElementById('mCost').value)   || 0,
+    stx:        parseFloat(document.getElementById('mStx').value)    || 0,
+    payout:     parseFloat(document.getElementById('mPayout').value) || 0,
+    goatPayout: parseFloat(document.getElementById('mGoat').value)   || 0,
+    sizes:{}, history:[],
+    notes: document.getElementById('mNotes').value.trim(), img:''
+  });
+  saveData(); closeModal(); render();
+  showToast('✅ 已添加');
+}
+
+// ── Image ─────────────────────────────────────────────────────────────────────
+function handleImg(id, input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => { const s = getById(id); if (s) { s.img = e.target.result; saveData(); render(); } };
+  reader.readAsDataURL(file);
+}
+
+// ── Export ────────────────────────────────────────────────────────────────────
+function exportCSV() {
+  const sea = parseFloat(document.getElementById('seaCost').value) || 10;
+  const air = parseFloat(document.getElementById('airCost').value) || 25;
+  const rows = [['品牌','型号','SKU','配色','平台','得物成本','最低报价','货款(到手)','海运利润','空运利润','备注']];
+  shoes.forEach(s => {
+    const po = s.platform === 'GOAT' ? s.goatPayout : (s.payout || s.goatPayout);
+    rows.push([s.brand, s.model, s.sku, s.color, s.platform,
+      s.cost||'', s.stx||'', s.payout||'',
+      calcProfit(po,s.cost,sea)?.toFixed(2)||'',
+      calcProfit(po,s.cost,air)?.toFixed(2)||'',
+      s.notes]);
+  });
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8'})),
+    download: `sneaker-${new Date().toISOString().slice(0,10)}.csv`
+  });
+  a.click();
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── Data Patch (补全缺失的尺码成本/货款数据) ───────────────────────────────────
+function patchData() {
+  const k14 = getById('k14-1');
+  if (!k14) return;
+  // EU码 ↔ 得物成本（按正确尺码表重新对应）
+  // 得物截图价格 ÷ 6.9 换算，EU码来自用户提供的正确换算表
+  const patch = {
+    '35.5':{ cost:144.78, stx:243, payout:212.80 }, // US3.5
+    '36':  { cost:116.81, stx:142, payout:121.90 }, // US4
+    '37':  { cost:121.74, stx:151, payout:130.00 }, // US4.5
+    '37.5':{ cost:129.71, stx:160, payout:138.10 }, // US5
+    '38':  { cost:133.48, stx:216, payout:188.50 }, // US5.5
+    '39':  { cost:130.14, stx:224, payout:195.70 }, // US6
+    '39.5':{ cost:159.28, stx:225, payout:196.60 }, // US6.5
+    '40':  { cost:145.65, stx:171, payout:148.00 }, // US7
+    '40.5':{ cost:157.10, stx:164, payout:141.70 }, // US7.5
+    '41.5':{ cost:152.17, stx:187, payout:162.40 }, // US8
+    '42':  { cost:147.25, stx:221, payout:193.00 }, // US8.5
+    '42.5':{ cost:154.64, stx:228, payout:199.30 }, // US9
+    '43.5':{ cost:171.59, stx:241, payout:211.00 }, // US9.5
+    '44':  { cost:198.99, stx:254, payout:222.70 }, // US10
+    '44.5':{ cost:217.25, stx:277, payout:243.40 }, // US10.5
+    '45':  { cost:199.86, stx:247, payout:216.40 }, // US11
+    '46':  { cost:220.87, stx:294, payout:258.70 }, // US11.5
+    '46.5':{ cost:206.52, stx:248, payout:217.30 }, // US12
+    '48':  { stx:205, payout:178.60 },              // US13（无得物成本）
+    '49':  { stx:325, payout:286.60 },              // US14（无得物成本）
+  };
+  let changed = false;
+  Object.entries(patch).forEach(([sz, data]) => {
+    if (!k14.sizes[sz]) k14.sizes[sz] = {};
+    Object.entries(data).forEach(([k, v]) => {
+      if (!k14.sizes[sz][k]) { k14.sizes[sz][k] = v; changed = true; }
+    });
+  });
+  if (changed) localStorage.setItem('sneaker_shoes2', JSON.stringify(shoes));
+}
+
+// ── Size Sales Analysis ───────────────────────────────────────────────────────
+// ── 正确尺码换算表（来自用户提供）──
+// US3.5=EU35.5, US4=EU36, US4.5=EU37, US5=EU37.5, US5.5=EU38,
+// US6=EU39, US6.5=EU39.5, US7=EU40, US7.5=EU40.5, US8=EU41.5,
+// US8.5=EU42, US9=EU42.5, US9.5=EU43.5, US10=EU44, US10.5=EU44.5,
+// US11=EU45, US11.5=EU46, US12=EU46.5, US13=EU48, US14=EU49
+// 利润 = StockX货款 - 得物成本 - 运费(海运$10/空运$25)
+const SIZE_CHART_DATA = [
+  { usSize:'9.5',  euSize:'43.5', count:84, early:46, late:38, avgPrice:185, profitSea:29.41,  profitAir:14.41,  trend:'flat' },
+  { usSize:'8.5',  euSize:'42',   count:81, early:48, late:33, avgPrice:149, profitSea:35.75,  profitAir:20.75,  trend:'down' },
+  { usSize:'8',    euSize:'41.5', count:74, early:42, late:32, avgPrice:146, profitSea:0.23,   profitAir:-14.77, trend:'down' },
+  { usSize:'7.5',  euSize:'40.5', count:62, early:38, late:24, avgPrice:148, profitSea:-25.40, profitAir:-40.40, trend:'down' },
+  { usSize:'9',    euSize:'42.5', count:57, early:26, late:31, avgPrice:178, profitSea:34.66,  profitAir:19.66,  trend:'flat' },
+  { usSize:'10',   euSize:'44',   count:50, early:29, late:21, avgPrice:198, profitSea:13.71,  profitAir:-1.29,  trend:'down' },
+  { usSize:'11',   euSize:'45',   count:47, early:20, late:27, avgPrice:193, profitSea:6.54,   profitAir:-8.46,  trend:'up'   },
+  { usSize:'5',    euSize:'37.5', count:42, early:26, late:16, avgPrice:129, profitSea:-1.61,  profitAir:-16.61, trend:'down' },
+  { usSize:'10.5', euSize:'44.5', count:39, early:21, late:18, avgPrice:205, profitSea:16.15,  profitAir:1.15,   trend:'flat' },
+  { usSize:'6.5',  euSize:'39.5', count:32, early:21, late:11, avgPrice:150, profitSea:27.32,  profitAir:12.32,  trend:'down' },
+  { usSize:'5.5',  euSize:'38',   count:30, early:17, late:13, avgPrice:162, profitSea:45.02,  profitAir:30.02,  trend:'down' },
+  { usSize:'7',    euSize:'40',   count:29, early:14, late:15, avgPrice:162, profitSea:-7.65,  profitAir:-22.65, trend:'flat' },
+  { usSize:'6',    euSize:'39',   count:25, early:10, late:15, avgPrice:164, profitSea:55.56,  profitAir:40.56,  trend:'up'   },
+  { usSize:'11.5', euSize:'46',   count:23, early:10, late:13, avgPrice:226, profitSea:27.83,  profitAir:12.83,  trend:'up'   },
+  { usSize:'4.5',  euSize:'37',   count:22, early:8,  late:14, avgPrice:143, profitSea:-1.74,  profitAir:-16.74, trend:'up'   },
+  { usSize:'12',   euSize:'46.5', count:20, early:9,  late:11, avgPrice:230, profitSea:0.78,   profitAir:-14.22, trend:'up'   },
+  { usSize:'4',    euSize:'36',   count:18, early:7,  late:11, avgPrice:132, profitSea:-4.91,  profitAir:-19.91, trend:'up'   },
+  { usSize:'13',   euSize:'48',   count:14, early:4,  late:10, avgPrice:224, profitSea:null,   profitAir:null,   trend:'up'   },
+];
+
+const DAILY_DATA_K14_1 = {
+  '2026-03-01': { count: 33, avgPrice: 178 },
+  '2026-03-02': { count: 27, avgPrice: 168 },
+  '2026-03-03': { count: 35, avgPrice: 158 },
+  '2026-03-04': { count: 30, avgPrice: 162 },
+  '2026-03-05': { count: 19, avgPrice: 173 },
+  '2026-03-06': { count: 26, avgPrice: 190 },
+  '2026-03-07': { count: 24, avgPrice: 155 },
+  '2026-03-08': { count: 29, avgPrice: 165 },
+  '2026-03-09': { count: 18, avgPrice: 157 },
+  '2026-03-10': { count: 30, avgPrice: 147 },
+  '2026-03-11': { count: 30, avgPrice: 171 },
+  '2026-03-12': { count: 19, avgPrice: 163 },
+  '2026-03-13': { count: 25, avgPrice: 172 },
+  '2026-03-14': { count: 29, avgPrice: 174 },
+  '2026-03-15': { count: 23, avgPrice: 153 },
+  '2026-03-16': { count: 34, avgPrice: 171 },
+  '2026-03-17': { count: 21, avgPrice: 163 },
+  '2026-03-18': { count: 19, avgPrice: 177 },
+  '2026-03-19': { count: 25, avgPrice: 162 },
+  '2026-03-20': { count: 21, avgPrice: 174 },
+  '2026-03-21': { count: 21, avgPrice: 179 },
+  '2026-03-22': { count: 28, avgPrice: 175 },
+  '2026-03-23': { count: 23, avgPrice: 172 },
+  '2026-03-24': { count: 19, avgPrice: 194 },
+  '2026-03-25': { count: 34, avgPrice: 177 },
+  '2026-03-26': { count: 22, avgPrice: 176 },
+  '2026-03-27': { count: 19, avgPrice: 175 },
+  '2026-03-28': { count: 16, avgPrice: 175 },
+  '2026-03-29': { count: 26, avgPrice: 181 },
+  '2026-03-30': { count: 19, avgPrice: 186 },
+  '2026-03-31': { count: 9,  avgPrice: 174 },
+};
+
+const WEEKLY_PRICE = {
+  'US9.5(EU43.5)': [180,186,185,187], // 盈利 海+空 count:84
+  'US8.5(EU42)':   [146,141,149,166], // 盈利 海+空 count:81
+  'US9(EU42.5)':   [183,179,175,179], // 盈利 海+空 count:57
+  'US6(EU39)':     [157,167,154,175], // 盈利 海+空 count:25
+  'US5.5(EU38)':   [142,170,166,174], // 盈利 海+空 count:30
+  'US6.5(EU39.5)': [148,143,154,161], // 盈利 海+空 count:32
+  'US10.5(EU44.5)':[229,182,203,205], // 盈利 海+空 count:39
+  'US11.5(EU46)':  [219,232,233,222], // 盈利 海+空 count:23
+  // 仅海运盈利
+  'US8(EU41.5)':   [131,138,159,161], // 海运$0 count:74
+  'US10(EU44)':    [187,201,197,211], // 海运$14 count:50
+  'US11(EU45)':    [183,190,193,203], // 海运$7  count:47
+  'US12(EU46.5)':  [249,259,209,221], // 海运$1  count:20
+  // 亏损
+  'US7.5(EU40.5)': [157,146,151,141], // 亏损    count:62
+  'US5(EU37.5)':   [119,145,102,130], // 亏损    count:42
+  'US7(EU40)':     [167,169,139,162], // 亏损    count:29
+  'US4.5(EU37)':   [135,138,140,153], // 亏损    count:22
+  'US4(EU36)':     [133,136,127,137], // 亏损    count:18
+};
+
+const WEEKS = ['W1(3/1-7)', 'W2(3/8-14)', 'W3(3/15-21)', 'W4(3/22-31)'];
+
+// Color palette
+const PALETTE_GREEN = ['#16a34a','#22c55e','#4ade80','#86efac','#15803d','#166534','#bbf7d0','#dcfce7'];
+const PALETTE_RED   = ['#dc2626','#f97316','#eab308','#8b5cf6','#06b6d4','#ec4899','#84cc16','#f43f5e'];
+
+let charts = {};
+
+function makeLineChart(canvasId, labels, datasets, yLabel) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  if (charts[canvasId]) { charts[canvasId].destroy(); }
+  charts[canvasId] = new Chart(canvas, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top', labels: { font:{size:11}, boxWidth:12, padding:8 } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: $${ctx.raw}` } }
+      },
+      scales: {
+        x: { grid: { color:'#f1f5f9' }, ticks: { font:{size:11} } },
+        y: {
+          title: { display:true, text: yLabel||'成交价 ($)', font:{size:11} },
+          grid: { color:'#f1f5f9' },
+          ticks: { callback: v => '$'+v }
+        }
+      }
+    }
+  });
+}
+
+let chartInstance = null;
+
+function buildChart(id) {
+  if (id !== 'k14-1') return;
+
+  // ── Chart 1: 盈利码价格走势 ──
+  const profitKeys = ['US9.5(EU43.5)','US8.5(EU42)','US9(EU42.5)','US6(EU39)','US5.5(EU38)','US6.5(EU39.5)','US10.5(EU44.5)','US11.5(EU46)'];
+  makeLineChart('canvas-profit-k14-1', WEEKS,
+    profitKeys.map((k,i) => ({
+      label: k,
+      data: WEEKLY_PRICE[k],
+      borderColor: PALETTE_GREEN[i],
+      backgroundColor: PALETTE_GREEN[i]+'22',
+      borderWidth: 2,
+      pointRadius: 4,
+      tension: 0.3,
+      fill: false,
+    }))
+  );
+
+  // ── Chart 2: 亏损/仅海运码价格走势 ──
+  const lossKeys = ['US8(EU41.5)','US10(EU44)','US11(EU45)','US12(EU46.5)','US7.5(EU40.5)','US5(EU37.5)','US7(EU40)','US4.5(EU37)'];
+  makeLineChart('canvas-loss-k14-1', WEEKS,
+    lossKeys.map((k,i) => ({
+      label: k + (i < 4 ? ' (仅海运盈利)' : ' (亏损)'),
+      data: WEEKLY_PRICE[k],
+      borderColor: PALETTE_RED[i],
+      backgroundColor: PALETTE_RED[i]+'22',
+      borderWidth: i < 4 ? 2 : 1.5,
+      borderDash: i >= 4 ? [5,3] : [],
+      pointRadius: 4,
+      tension: 0.3,
+      fill: false,
+    }))
+  );
+
+  // ── Chart 3: 销量棒图 ──
+  const volData = SIZE_CHART_DATA.sort((a,b)=>b.count-a.count);
+  const barColors = volData.map(d =>
+    d.profitAir > 0  ? 'rgba(22,163,74,0.75)' :
+    d.profitSea > 0  ? 'rgba(217,119,6,0.75)' :
+    d.profitSea === null ? 'rgba(150,150,150,0.5)' :
+                       'rgba(220,38,38,0.6)'
+  );
+  const cVol = document.getElementById('canvas-vol-k14-1');
+  if (cVol) {
+    if (charts['canvas-vol-k14-1']) charts['canvas-vol-k14-1'].destroy();
+    charts['canvas-vol-k14-1'] = new Chart(cVol, {
+      type: 'bar',
+      data: {
+        labels: volData.map(d=>`EU${d.euSize}`),
+        datasets: [{
+          label: '3月销量',
+          data: volData.map(d=>d.count),
+          backgroundColor: barColors,
+          borderWidth: 1,
+        },{
+          label: '预测4月销量',
+          data: volData.map(d=>Math.round(d.late*1.94)),
+          type: 'line',
+          borderColor: '#6c63ff',
+          borderDash: [5,3],
+          borderWidth: 2,
+          pointRadius: 4,
+          pointBackgroundColor: '#6c63ff',
+          fill: false,
+          tension: 0.3,
+        }]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins: {
+          legend: { position:'top', labels:{font:{size:11},boxWidth:12} },
+          tooltip: { callbacks:{ label: ctx => ` ${ctx.dataset.label}: ${ctx.raw}笔` } }
+        },
+        scales: {
+          x: { grid:{color:'#f1f5f9'}, ticks:{font:{size:11}} },
+          y: { beginAtZero:true, title:{display:true,text:'销量（笔）'}, grid:{color:'#f1f5f9'} }
+        }
+      }
+    });
+  }
+
+  // Build size summary table
+  const trendIcon = t => t==='up'?'📈':t==='down'?'📉':'➡️';
+  const trendLabel = t => t==='up'?'上升':t==='down'?'下降':'平稳';
+  const rows = SIZE_CHART_DATA.map((d,i) => {
+    const seaOk  = d.profitSea !== null && d.profitSea >= 0;
+    const airOk  = d.profitAir !== null && d.profitAir >= 0;
+    const pSea   = d.profitSea === null ? '—' : (d.profitSea>=0?'<span style="color:#16a34a;font-weight:700">+$'+d.profitSea.toFixed(0)+'</span>':'<span style="color:#dc2626">-$'+Math.abs(d.profitSea).toFixed(0)+'</span>');
+    const pAir   = d.profitAir === null ? '—' : (d.profitAir>=0?'<span style="color:#16a34a;font-weight:700">+$'+d.profitAir.toFixed(0)+'</span>':'<span style="color:#dc2626">-$'+Math.abs(d.profitAir).toFixed(0)+'</span>');
+    const forecast = Math.round(d.late * 1.94);
+    const recBg = seaOk && d.count >= 40 ? 'background:#f0fdf4' : '';
+    return `<tr style="${recBg}">
+      <td style="font-weight:700">#${i+1}</td>
+      <td>US${d.usSize}</td>
+      <td><b>EU${d.euSize}</b></td>
+      <td><b>${d.count}</b></td>
+      <td style="color:#6c63ff">${d.early} → ${d.late}</td>
+      <td>${trendIcon(d.trend)} ${trendLabel(d.trend)}</td>
+      <td>$${d.avgPrice}</td>
+      <td>${pSea}</td>
+      <td>${pAir}</td>
+      <td style="color:#6c63ff;font-weight:700">~${forecast}</td>
+    </tr>`;
+  }).join('');
+
+  // Build summary table
+  const trendIconFn = t => t==='up'?'📈':t==='down'?'📉':'➡️';
+  const priceTrendOf = key => {
+    const w = WEEKLY_PRICE[key]; if (!w) return '—';
+    const diff = w[3] - w[0];
+    return diff > 10 ? '📈涨价+$'+diff : diff < -10 ? '📉跌价-$'+Math.abs(diff) : '➡️平稳';
+  };
+  const profitBothKeys  = {'US9.5':'EU43.5','US8.5':'EU42','US9':'EU42.5','US6':'EU39','US5.5':'EU38','US6.5':'EU39.5','US10.5':'EU44.5','US11.5':'EU46'};
+  const seaOnlyKeys     = {'US8':'EU41.5','US10':'EU44','US11':'EU45','US12':'EU46.5'};
+  const neitherKeys     = {'US7.5':'EU40.5','US5':'EU37.5','US7':'EU40','US4.5':'EU37','US4':'EU36'};
+
+  const rowsProfit = SIZE_CHART_DATA.filter(d=>d.profitAir!==null&&d.profitAir>0).sort((a,b)=>b.count-a.count).map(d=>{
+    const key=`US${d.usSize}(EU${d.euSize})`;
+    const w=WEEKLY_PRICE[key]||[];
+    const pSea=`<span style="color:#16a34a;font-weight:700">+$${d.profitSea?.toFixed(0)}</span>`;
+    const pAir=`<span style="color:#16a34a;font-weight:700">+$${d.profitAir?.toFixed(0)}</span>`;
+    return `<tr style="background:#f0fdf4"><td>EU${d.euSize}</td><td>US${d.usSize}</td><td><b>${d.count}</b></td><td>${trendIconFn(d.trend)}</td><td>${w.map(p=>'$'+p).join('→')}</td><td>${priceTrendOf(key)}</td><td>${pSea}</td><td>${pAir}</td><td style="color:#6c63ff">~${Math.round(d.late*1.94)}</td></tr>`;
+  }).join('');
+
+  const rowsSea = SIZE_CHART_DATA.filter(d=>d.profitSea!==null&&d.profitSea>0&&(d.profitAir===null||d.profitAir<=0)).sort((a,b)=>b.count-a.count).map(d=>{
+    const key=`US${d.usSize}(EU${d.euSize})`;
+    const w=WEEKLY_PRICE[key]||[];
+    const pSea=`<span style="color:#d97706;font-weight:700">+$${d.profitSea?.toFixed(0)}</span>`;
+    const pAir=d.profitAir!==null?`<span style="color:#dc2626">-$${Math.abs(d.profitAir).toFixed(0)}</span>`:'—';
+    return `<tr style="background:#fffbeb"><td>EU${d.euSize}</td><td>US${d.usSize}</td><td><b>${d.count}</b></td><td>${trendIconFn(d.trend)}</td><td>${w.map(p=>'$'+p).join('→')}</td><td>${priceTrendOf(key)}</td><td>${pSea}</td><td>${pAir}</td><td style="color:#6c63ff">~${Math.round(d.late*1.94)}</td></tr>`;
+  }).join('');
+
+  const rowsLoss = SIZE_CHART_DATA.filter(d=>d.profitSea===null||d.profitSea<=0).sort((a,b)=>b.count-a.count).map(d=>{
+    const key=`US${d.usSize}(EU${d.euSize})`;
+    const w=WEEKLY_PRICE[key]||[];
+    const pSea=d.profitSea!==null?`<span style="color:#dc2626">-$${Math.abs(d.profitSea).toFixed(0)}</span>`:'—';
+    const pAir=d.profitAir!==null?`<span style="color:#dc2626">-$${Math.abs(d.profitAir).toFixed(0)}</span>`:'—';
+    return `<tr><td>EU${d.euSize}</td><td>US${d.usSize}</td><td><b>${d.count}</b></td><td>${trendIconFn(d.trend)}</td><td>${w.map(p=>'$'+p).join('→')}</td><td>${priceTrendOf(key)}</td><td>${pSea}</td><td>${pAir}</td><td style="color:#6c63ff">~${Math.round(d.late*1.94)}</td></tr>`;
+  }).join('');
+
+  const thead = `<tr style="background:#f1f5f9;color:#64748b;font-size:0.72rem"><th style="padding:4px">EU</th><th>US</th><th>月销量</th><th>销量趋势</th><th>W1→W2→W3→W4价格</th><th>价格趋势</th><th>🚢海运利润</th><th>✈️空运利润</th><th>🔮预测4月</th></tr>`;
+
+  document.getElementById('trend-k14-1').innerHTML = `
+    <b style="color:#16a34a">✅ 海运+空运均盈利（推荐进货）</b>
+    <div style="overflow-x:auto;margin:6px 0 12px"><table style="width:100%;font-size:0.75rem;border-collapse:collapse">${thead}${rowsProfit}</table></div>
+    <b style="color:#d97706">⚡ 仅海运盈利（空运亏损，谨慎进货）</b>
+    <div style="overflow-x:auto;margin:6px 0 12px"><table style="width:100%;font-size:0.75rem;border-collapse:collapse">${thead}${rowsSea}</table></div>
+    <b style="color:#dc2626">❌ 目前亏损（观察价格趋势是否回暖）</b>
+    <div style="overflow-x:auto;margin:6px 0 8px"><table style="width:100%;font-size:0.75rem;border-collapse:collapse">${thead}${rowsLoss}</table></div>
+    <div style="font-size:0.72rem;color:#64748b">
+      W1=3/1-7 | W2=3/8-14 | W3=3/15-21 | W4=3/22-31 &nbsp;|&nbsp; 🔮预测基于后半月销量趋势外推
+    </div>
+  `;
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.getElementById('addModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('addModal')) closeModal();
+});
+patchData();
+render();
+</script>
+</body>
+</html>
