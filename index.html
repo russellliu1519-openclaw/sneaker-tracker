@@ -468,8 +468,9 @@ function renderCard(s, sea, air) {
     ? s.history.map(h => `<div class="history-entry"><span style="color:var(--muted)">${h.date}</span><span>${h.size}</span><span style="color:var(--green);font-weight:600">$${h.price}</span><span style="color:var(--muted)">${h.platform}</span></div>`).join('')
     : '<div style="color:var(--muted);font-size:0.75rem;padding:4px 0">暂无记录</div>';
 
-  // size rows
-  const sizeRows = EU_SIZES.map(sz => {
+  // size rows — use shoe's own size keys if available, else fall back to EU_SIZES
+  const sizeKeys = Object.keys(s.sizes).length > 0 ? Object.keys(s.sizes) : EU_SIZES;
+  const sizeRows = sizeKeys.map(sz => {
     const d = s.sizes[sz] || {};
     const szCost   = d.cost   || s.cost   || 0;
     const szPayout = d.payout || s.payout || 0;
@@ -477,7 +478,7 @@ function renderCard(s, sea, air) {
     const szPSea   = calcProfit(szPayout, szCost, sea);
     const szPAir   = calcProfit(szPayout, szCost, air);
     const hasPrices = szStx || szPayout;
-    if (!hasPrices && !szCost) return ''; // skip completely empty rows unless default cost
+    if (!hasPrices && !szCost) return '';
     return `<tr>
       <td><b>EU ${sz}</b></td>
       <td><input type="number" placeholder="${s.cost||'—'}" value="${d.cost||''}" step="0.01" onchange="updateSize('${s.id}','${sz}','cost',this.value)"></td>
